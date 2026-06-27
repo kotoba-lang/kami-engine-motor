@@ -1,0 +1,13 @@
+{:paths ["src"]
+ ;; Reduced-order traction-motor solver on the shared, purpose-split libs.
+ ;; Registers :rom-motor on the cae-solver contract; turns the design's peak-kW
+ ;; assumption into a sized motor (torque density + efficiency). A high-fidelity
+ ;; kami-emag magnetostatic FEA registers :emag-fea on the same contract later.
+ :deps {io.github.com-junkawasaki/datom-clj       {:local/root "../datom-clj"}
+        io.github.com-junkawasaki/cae-solver-clj  {:local/root "../cae-solver-clj"}}
+ :aliases
+ {:test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}}}
