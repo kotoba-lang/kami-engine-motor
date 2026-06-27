@@ -20,9 +20,21 @@
     (is (< (:torque-Nm (motor/solve {:d-rotor-mm 180}))
            (:torque-Nm (motor/solve {:d-rotor-mm 240}))))))
 
+(deftest inverse-sizing-hits-target-power
+  (testing "size-for-power solves geometry that delivers the target kW"
+    (let [r (motor/size-for-power {:p-peak-kW 110})]
+      (is (< 100 (:p-peak-kW r) 122) (str "delivered " (:p-peak-kW r) " kW for 110 target"))
+      (is (< 1.0 (:Nm-per-kg r) 12.0))
+      (is (< 0.92 (:eff-peak r) 0.98)))
+    (testing "more power → more motor mass"
+      (is (< (:mass-kg (motor/size-for-power {:p-peak-kW 80}))
+             (:mass-kg (motor/size-for-power {:p-peak-kW 200})))))))
+
 (deftest registered-on-contract
   (is (cae/registered? :rom-motor))
-  (is (= :rom-motor (:solver (cae/solve {:solver {:kind :rom-motor}})))))
+  (is (= :rom-motor (:solver (cae/solve {:solver {:kind :rom-motor}}))))
+  (testing "contract routes to inverse sizing when a power target is present"
+    (is (= 110 (:sized-for-kW (cae/solve {:p-peak-kW 110 :solver {:kind :rom-motor}}))))))
 
 (deftest datafied
   (is (pos? (:datom-count (motor/run {:case/id "sedan/motor"})))))

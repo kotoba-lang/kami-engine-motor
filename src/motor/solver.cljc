@@ -21,7 +21,7 @@
   [{:keys [d-rotor-mm l-stack-mm rpm-base magnet shear-kPa
            cu-loss fe-loss mech-loss active-frac rho-active]
     :or {d-rotor-mm 200 l-stack-mm 150 rpm-base 4500 magnet :NdFeB-N42
-         shear-kPa 35 cu-loss 0.022 fe-loss 0.012 mech-loss 0.006
+         shear-kPa 45 cu-loss 0.022 fe-loss 0.012 mech-loss 0.006
          active-frac 0.62 rho-active 5200}}]
   (let [d    (/ d-rotor-mm 1000.0)
         l    (/ l-stack-mm 1000.0)
@@ -38,7 +38,25 @@
      :Nm-per-kg (/ torque mass) :eff-peak eff :magnet magnet
      :solver :rom-motor}))
 
-(defmethod cae/solve :rom-motor [case] (solve case))
+(defn size-for-power
+  "INVERSE sizing: given a target peak power and base speed, solve the rotor
+  geometry that delivers it (fixing aspect ratio λ = L/D), then size mass and
+  efficiency. T = ½·π·σ·D²·L and L = λ·D ⇒ D³ = 2P/(π·σ·λ·ω). This is what the
+  design actor needs — it has a peak-kW target, not a rotor diameter."
+  [{:keys [p-peak-kW rpm-base magnet shear-kPa aspect]
+    :or {p-peak-kW 110 rpm-base 4500 magnet :NdFeB-N42 shear-kPa 45 aspect 0.75}}]
+  (let [br  (get magnets magnet 1.30)
+        sig (* shear-kPa 1000.0 (/ br 1.30))
+        w   (* rpm-base (/ (* 2 pi) 60.0))
+        p   (* p-peak-kW 1000.0)
+        d   (Math/cbrt (/ (* 2.0 p) (* pi sig aspect w)))  ; rotor dia (m)
+        l   (* aspect d)]
+    (assoc (solve {:d-rotor-mm (* d 1000.0) :l-stack-mm (* l 1000.0)
+                   :rpm-base rpm-base :magnet magnet :shear-kPa shear-kPa})
+           :sized-for-kW p-peak-kW)))
+
+(defmethod cae/solve :rom-motor [case]
+  (if (:p-peak-kW case) (size-for-power case) (solve case)))
 
 (defn run [case]
   (let [r   (solve case)
