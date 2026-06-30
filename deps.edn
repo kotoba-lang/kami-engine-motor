@@ -3,8 +3,8 @@
  ;; Registers :rom-motor on the cae-solver contract; turns the design's peak-kW
  ;; assumption into a sized motor (torque density + efficiency). A high-fidelity
  ;; kami-emag magnetostatic FEA registers :emag-fea on the same contract later.
- :deps {io.github.com-junkawasaki/datom-clj       {:local/root "../datom-clj"}
-        io.github.com-junkawasaki/cae-solver-clj  {:local/root "../cae-solver-clj"}}
+ :deps {io.github.kotoba-lang/datom       {:local/root "../datom"}
+        io.github.kotoba-lang/cae-solver  {:local/root "../cae-solver"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
