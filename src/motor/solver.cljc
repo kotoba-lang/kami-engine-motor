@@ -67,6 +67,6 @@
                        :kW     (Math/round (double (:p-peak-kW r)))
                        :massKg (Math/round (double (:mass-kg r)))
                        :NmPerKg (Math/round (* 100.0 (:Nm-per-kg r)))
-                       :effPct (Math/round (* 1000.0 (:eff-peak r)))})
+                       :effPct (Math/round (* 100.0 (:eff-peak r)))})
         led (d/log [ent])]
     (assoc r :datoms (:datoms led) :datom-count (:count led))))

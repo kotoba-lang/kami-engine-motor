@@ -38,3 +38,11 @@
 
 (deftest datafied
   (is (pos? (:datom-count (motor/run {:case/id "sedan/motor"})))))
+
+(deftest effpct-datom-is-a-real-percent
+  ;; effPct must be eff-peak expressed as a 0-100 percent, not the fraction
+  ;; scaled by 1000 -- a traction motor can't be 960% efficient.
+  (let [r (motor/run {:case/id "pct-check"})
+        eff-pct (some (fn [[_ attr v]] (when (= attr :motor.MotorRun/effPct) v)) (:datoms r))]
+    (is (= (Math/round (* 100.0 (:eff-peak r))) eff-pct))
+    (is (< 0 eff-pct 100) (str "effPct=" eff-pct " must be a sane percent, not eff*1000"))))
