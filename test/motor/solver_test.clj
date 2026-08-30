@@ -36,6 +36,31 @@
   (testing "contract routes to inverse sizing when a power target is present"
     (is (= 110 (:sized-for-kW (cae/solve {:p-peak-kW 110 :solver {:kind :rom-motor}}))))))
 
+(deftest run-respects-power-target
+  ;; Regression: `run` used to call `solve` directly, bypassing the
+  ;; :rom-motor dispatch, so a case with :p-peak-kW recorded the DEFAULT
+  ;; geometry (199.86 kW / 101.2 kg) under the caller's case id — for a
+  ;; 30 kW target that is a 6.7x mass error written as datoms.
+  (let [r (motor/run {:case/id "run-power-30" :p-peak-kW 30})]
+    (testing "datoms reflect the motor sized for the target"
+      (is (< 29 (:p-peak-kW r) 31) (str "delivered " (:p-peak-kW r) " kW"))
+      (is (= 30 (:sized-for-kW r)))
+      (is (= 30 (some (fn [[_ attr v]] (when (= attr :motor.MotorRun/sizedKW) v))
+                      (:datoms r))))
+      (testing "mass matches size-for-power, not the default geometry"
+        (is (< (:mass-kg r) 20) (str "mass=" (:mass-kg r) " kg (default is ~101 kg)"))
+        (is (= (:mass-kg (motor/size-for-power {:p-peak-kW 30})) (:mass-kg r)))))
+    (testing "datom fields agree with the returned result"
+      (is (= 30 (some (fn [[_ attr v]] (when (= attr :motor.MotorRun/kW) v)) (:datoms r))))
+      (is (= 15 (some (fn [[_ attr v]] (when (= attr :motor.MotorRun/massKg) v)) (:datoms r))))))
+
+  (testing "no-power case still records the default geometry"
+    (let [r  (motor/run {:case/id "run-default"})
+          d  (motor/solve {})]
+      (is (= (:p-peak-kW d) (:p-peak-kW r)))
+      (is (nil? (:sized-for-kW r)))
+      (is (nil? (some (fn [[_ attr _]] (= attr :motor.MotorRun/sizedKW)) (:datoms r)))))))
+
 (deftest datafied
   (is (pos? (:datom-count (motor/run {:case/id "sedan/motor"})))))
 
