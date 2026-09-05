@@ -33,3 +33,15 @@ The power basis is the vendor's **180-second** rating — right for sizing to pe
 thrust, wrong for continuous cruise. KV is not in the fit: mass tracks torque
 more closely than power, and these datasheets do not state rpm at max power, so
 the table's KV 100-400 spread is part of the residual above.
+
+## `motor.envelope` (`:rom-motor-envelope`) — torque–speed envelope
+
+`motor.solver` answers one point: torque at `:rpm-base`. `motor.envelope`
+extends a sized motor result to every speed the drive visits — constant torque
+up to base speed, ideal constant power above it (torque = T0·ω_base/ω, which
+is only the P = T·ω identity). Real field weakening delivers less than this
+ideal line and the amount is not modeled here: every above-base point carries
+`:weakening-eff-unmodeled? true`. `:rpm-base` and `:rpm-max` are required from
+the caller — rotor burst speed is a mechanical limit of the actual rotor and
+nothing in this library measures it, so there is no default to invent. Claims
+past `:rpm-max` refuse loudly.
