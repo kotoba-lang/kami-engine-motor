@@ -45,3 +45,14 @@ ideal line and the amount is not modeled here: every above-base point carries
 the caller — rotor burst speed is a mechanical limit of the actual rotor and
 nothing in this library measures it, so there is no default to invent. Claims
 past `:rpm-max` refuse loudly.
+## `motor.dcbus` (`:dcbus-balance`) — DC-bus power balance + buffer-battery SoC
+Per-interval split of a demand series between the fuel cell (capped at
+`:p-fc-max-kW`) and the buffer battery (capped by `:p-bat-dis-max-kW` /
+`:p-bat-chg-max-kW`, confined to the `:soc-min`..`:soc-max` window), with a
+uniform `:dt-h`. Unmet power and regen power that cannot be absorbed are
+reported per interval and summed — never silently shifted onto another
+component. The bus is idealized lossless; converter efficiency, battery
+round-trip loss, and the fuel-cell partial-load curve are all declared
+`:unmeasured` on the result. Registers `:dcbus-balance` on the shared
+`cae.solver/solve` contract. Zero-dep portable `.cljc`; run with
+`clojure -M:test`.
