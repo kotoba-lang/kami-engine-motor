@@ -58,15 +58,23 @@
 (defmethod cae/solve :rom-motor [case]
   (if (:p-peak-kW case) (size-for-power case) (solve case)))
 
-(defn run [case]
-  (let [r   (solve case)
+(defn run
+  "Datom-writing path. Routes through the SAME :rom-motor dispatch as
+  `cae/solve`, so a case carrying `:p-peak-kW` records the motor sized for
+  that target — not the default geometry. (Previously `run` called `solve`
+  directly, silently writing a ~110 kW-class default motor's datoms under
+  the caller's case id when a power target was present.)"
+  [case]
+  (let [r   (cae/solve (merge {:solver {:kind :rom-motor}} case))
         cid (or (:case/id case) "motor-0")
         ent (d/entity "motor" :MotorRun cid
-                      {:magnet (name (:magnet r))
-                       :Nm     (Math/round (double (:torque-Nm r)))
-                       :kW     (Math/round (double (:p-peak-kW r)))
-                       :massKg (Math/round (double (:mass-kg r)))
-                       :NmPerKg (Math/round (* 100.0 (:Nm-per-kg r)))
-                       :effPct (Math/round (* 100.0 (:eff-peak r)))})
+                      (merge {:magnet (name (:magnet r))
+                              :Nm     (Math/round (double (:torque-Nm r)))
+                              :kW     (Math/round (double (:p-peak-kW r)))
+                              :massKg (Math/round (double (:mass-kg r)))
+                              :NmPerKg (Math/round (* 100.0 (:Nm-per-kg r)))
+                              :effPct (Math/round (* 100.0 (:eff-peak r)))}
+                             (when (:sized-for-kW r)
+                               {:sizedKW (Math/round (double (:sized-for-kW r)))})))
         led (d/log [ent])]
     (assoc r :datoms (:datoms led) :datom-count (:count led))))
