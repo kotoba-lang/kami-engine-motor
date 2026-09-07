@@ -1,6 +1,6 @@
 (ns motor.esc
   "ESC (inverter) feasibility of one torque-speed operating point against a DC
-  bus (:esc-feasibility).
+  bus (:esc-feasibility) and of a whole torque-speed drive profile (:drive-feasibility).
 
   This is the missing link between the bus plane and the mechanical planes of
   this library: `motor.dcbus` treats the traction load as an already-net kW
@@ -101,5 +101,83 @@
      :unmeasured [:iron-loss :friction-windage-loss :switching-loss
                   :esc-thermal-derating :regeneration-braking]
      :solver :esc-feasibility}))
+(defn- require-profile
+  [profile]
+  (when-not (and (sequential? profile) (seq profile))
+    (throw (ex-info "esc: :profile must be a non-empty sequential of {:rpm .. :torque-Nm ..} points"
+                    {:profile profile})))
+  (when-not (every? (fn [pt]
+                      (and (map? pt)
+                           (number? (:rpm pt))
+                           (number? (:torque-Nm pt))))
+                    profile)
+    (throw (ex-info "esc: :profile must contain only {:rpm .. :torque-Nm ..} maps"
+                    {:profile profile}))))
+
+(defn drive-feasibility
+  "Verify a motor + ESC over a uniformly-sampled, torque-speed drive profile —
+  the mission-level companion to `solve`, which checks ONE operating point.
+  Composes `solve` per point (identical quasi-static DC-equivalent math, no
+  physical constant is invented) and integrates electrical, mechanical, and
+  copper energy exactly: E = P*dt over each uniform interval.
+
+  case:
+    :profile       non-empty sequential of {:rpm r :torque-Nm t} operating
+                   points (r >= 0, t >= 0; a 0/0 idle point is allowed), each
+                   held for :dt-s seconds.
+    :dt-s          uniform sample interval, seconds, > 0.
+    :kt-Nm-per-A / :ke-Vs-per-rad / :r-phase-ohm / :i-max-A / :v-ceiling-V
+                   the same ESC+machine constants as `solve`, REQUIRED with no
+                   defaults (shared across the whole profile; validated per
+                   point by `solve`).
+
+  Returns:
+    {:solver :drive-feasibility
+     :points [{:i :rpm :torque-Nm ...every `solve` field, plus
+              :elec-kWh :mech-kWh :copper-kWh} ...]
+     :energy {:elec-kWh :mech-kWh :copper-kWh :overall-eff}
+     :all-feasible?    boolean (every point feasible?)
+     :infeasible-count int
+     :duration-s       dt-s x profile length
+     :unmeasured       union of point-level losses `solve` does not model
+     :provenance       {:dt-s .. :profile-count ..}}
+
+  Refusals (fail closed): empty/non-map :profile, non-positive :dt-s, or a
+  missing/non-physical electrical constant (surfaced by `solve` per point)."
+  [{:keys [profile dt-s] :as case}]
+  (require-profile profile)
+  (when-not (and (number? dt-s) (pos? dt-s))
+    (throw (ex-info "esc: :dt-s must be a positive number of seconds"
+                    {:dt-s dt-s})))
+  (let [esc-params (select-keys case
+                                [:kt-Nm-per-A :ke-Vs-per-rad :r-phase-ohm
+                                 :i-max-A :v-ceiling-V])
+        dt-h  (/ (double dt-s) 3600.0)
+        pts   (mapv (fn [i pt]
+                      (let [r (solve (merge esc-params
+                                            {:torque-Nm (:torque-Nm pt)
+                                             :rpm       (:rpm pt)}))]
+                        (assoc r
+                               :i i
+                               :rpm (:rpm pt)
+                               :torque-Nm (:torque-Nm pt)
+                               :elec-kWh   (* (:p-elec-kW r) dt-h)
+                               :mech-kWh   (* (:p-mech-kW r) dt-h)
+                               :copper-kWh (* (:copper-loss-kW r) dt-h))))
+                    (range)
+                    profile)
+        elec   (reduce + 0.0 (map :elec-kWh pts))
+        mech   (reduce + 0.0 (map :mech-kWh pts))
+        copper (reduce + 0.0 (map :copper-kWh pts))
+        eff    (when (pos? elec) (/ mech elec))]
+    {:solver :drive-feasibility
+     :points pts
+     :energy {:elec-kWh elec :mech-kWh mech :copper-kWh copper :overall-eff eff}
+     :all-feasible? (every? :feasible? pts)
+     :infeasible-count (count (remove :feasible? pts))
+     :duration-s (* (double dt-s) (count pts))
+     :unmeasured (vec (distinct (reduce into [] (map :unmeasured pts))))
+     :provenance {:dt-s (double dt-s) :profile-count (count pts)}}))
 
 (defmethod cae/solve :esc-feasibility [case] (solve case))
+(defmethod cae/solve :drive-feasibility [case] (drive-feasibility case))
