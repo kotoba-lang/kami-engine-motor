@@ -5,7 +5,7 @@
 Reduced-order traction-motor solver (`:rom-motor`) — air-gap shear sizing + loss-fraction efficiency → torque density, peak power, mass. A kami-emag magnetostatic FEA registers `:emag-fea` on the same contract.
 
 Part of the clean-sheet vehicle-design / CAE stack (purpose-split shared libs).
-Zero-dep portable `.cljc`. Run `clojure -M:test`.
+Zero-dep portable `.cljc`. Run `kbb -M:test`.
 
 ## `motor.bldc` (`:rom-bldc`) — small motors, calibrated instead of extrapolated
 
@@ -55,4 +55,4 @@ component. The bus is idealized lossless; converter efficiency, battery
 round-trip loss, and the fuel-cell partial-load curve are all declared
 `:unmeasured` on the result. Registers `:dcbus-balance` on the shared
 `cae.solver/solve` contract. Zero-dep portable `.cljc`; run with
-`clojure -M:test`.
+`kbb -M:test`.
