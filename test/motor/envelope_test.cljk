@@ -1,5 +1,5 @@
 (ns motor.envelope-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [motor.solver :as motor]
             [motor.envelope :as env]
             [cae.solver :as cae]))

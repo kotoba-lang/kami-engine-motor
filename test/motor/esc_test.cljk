@@ -1,5 +1,5 @@
 (ns motor.esc-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [motor.esc :as esc]
             [cae.solver :as cae]))
 

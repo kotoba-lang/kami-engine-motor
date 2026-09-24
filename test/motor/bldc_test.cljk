@@ -2,7 +2,7 @@
   "The fit is checked against the five published motors it was fitted to, and
   the disagreement with the traction-motor model at drone scale is pinned as a
   fact rather than left as a footnote — it is the reason this namespace exists."
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [kotoba.test :refer [deftest testing is]]
             [cae.solver :as cae]
             [motor.bldc :as bldc]
             [motor.solver :as motor]))
